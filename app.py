@@ -1,9 +1,13 @@
 from flask import Flask, render_template, redirect, url_for, request, flash
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
+from flask import Flask, render_template, request, redirect, url_for, flash, Response
 from datetime import datetime
 from fpdf import FPDF
 import os
+from sqlalchemy import func
+import pandas as pd
+from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'tera-secret-key'
@@ -129,36 +133,43 @@ def logout():
 @app.route('/admin')
 @login_required
 def admin_dashboard():
-    if current_user.role != 'Admin': return redirect(url_for('dashboard'))
+    if current_user.role != 'Admin':
+        return redirect(url_for('dashboard'))
     
-    total = Complaint.query.count()
-    pending = Complaint.query.filter_by(status='Pending').count()
-    active = Complaint.query.filter_by(status='Active').count()
-    resolved = Complaint.query.filter_by(status='Resolved').count()
-    closed = Complaint.query.filter_by(status='Closed').count()
-    reopened = Complaint.query.filter_by(status='Reopened').count()
-    
-    pending_users = User.query.filter_by(is_approved=False).all()
+    # Get all users
     all_users = User.query.all()
-    all_complaints = Complaint.query.order_by(Complaint.created_at.desc()).all()
     
-    # Get filter status from URL
+    # Get complaints
+    complaints = Complaint.query.filter(
+        Complaint.status.in_(['Pending', 'Active', 'Closed'])
+    ).order_by(Complaint.created_at.desc()).all()
+    
+    # Stats
+    total = len(complaints)
+    pending = len([c for c in complaints if c.status == 'Pending'])
+    active = len([c for c in complaints if c.status == 'Active'])
+    closed = len([c for c in complaints if c.status == 'Closed'])
+    
+    # Pending users
+    pending_users = User.query.filter_by(is_approved=False).all()
+    
+    # Filter by status
     filter_status = request.args.get('status')
-    
     if filter_status:
-        filtered_complaints = [c for c in all_complaints if c.status == filter_status]
+        filtered_complaints = [c for c in complaints if c.status == filter_status]
     else:
-        filtered_complaints = all_complaints
+        filtered_complaints = complaints
     
-    return render_template('admin_dashboard.html', 
-                         total=total, pending=pending, active=active, 
-                         resolved=resolved, closed=closed,
-                         reopened=reopened,
-                         pending_users=pending_users,
-                         all_users=all_users,
-                         all_complaints=all_complaints,
-                         filtered_complaints=filtered_complaints,
-                         get_resolution_time=get_resolution_time)
+    return render_template('admin_dashboard.html',
+                          total=total,
+                          pending=pending,
+                          active=active,
+                          closed=closed,
+                          all_users=all_users,
+                          pending_users=pending_users,
+                          complaints=complaints,
+                          filtered_complaints=filtered_complaints,
+                          current_time=datetime.now())
 # ============================================
 # ADMIN - USER MANAGEMENT
 # ============================================
@@ -245,129 +256,356 @@ def delete_user(user_id):
     db.session.commit()
     return redirect(url_for('admin_dashboard'))
 
-@app.route('/admin/report')
+# ============================================
+# GENERATE PDF REPORT
+# ============================================
+
+@app.route('/generate_report')
 @login_required
 def generate_report():
-    if current_user.role != 'Admin': return redirect(url_for('dashboard'))
+    if current_user.role != 'Admin':
+        return redirect(url_for('dashboard'))
     
-    complaints = Complaint.query.order_by(Complaint.created_at.desc()).all()
+    # Get complaints
+    complaints = Complaint.query.filter(
+        db.or_(
+            Complaint.status == 'Pending',
+            Complaint.status == 'Active',
+            Complaint.status == 'Closed'
+        )
+    ).order_by(Complaint.created_at.desc()).all()
+    
+    # Get all users for role lookup
     all_users = User.query.all()
+    user_dict = {u.id: u for u in all_users}
     
-    class PDF(FPDF):
-        def header(self):
-            self.set_font('Arial', 'B', 16)
-            self.cell(0, 10, 'Tera Software - Complaint Management System', 0, 1, 'C')
-            self.set_font('Arial', 'I', 10)
-            self.cell(0, 8, 'Complaint Report', 0, 1, 'C')
-            self.ln(3)
-        
-        def footer(self):
-            self.set_y(-15)
-            self.set_font('Arial', 'I', 8)
-            self.cell(0, 10, f'Generated on: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}', 0, 0, 'C')
-    
-    pdf = PDF(orientation='L', unit='mm', format='A4')
+    # Create PDF
+    pdf = FPDF('P', 'mm', 'A4')
     pdf.add_page()
-    pdf.set_auto_page_break(auto=True, margin=15)
+    pdf.set_auto_page_break(True, 10)
     
-    # Column widths
-    col_widths = [30, 55, 28, 50, 20, 32, 32, 25]
-    headers = ['ID', 'Title', 'Category', 'Location', 'Status', 'Resolved By', 'Created', 'Time Taken']
+    # Title
+    pdf.set_font('Arial', 'B', 16)
+    pdf.cell(0, 10, 'Complaint Management System - Report', 0, 1, 'C')
+    
+    # Date
+    pdf.set_font('Arial', '', 10)
+    pdf.cell(0, 8, f'Generated: {datetime.now().strftime("%Y-%m-%d %H:%M")}', 0, 1, 'C')
+    pdf.ln(5)
+    
+    # Summary
+    pdf.set_font('Arial', 'B', 12)
+    pdf.cell(0, 10, 'Summary', 0, 1, 'L')
+    
+    pdf.set_font('Arial', '', 10)
+    total = len(complaints)
+    pending = len([c for c in complaints if c.status == 'Pending'])
+    active = len([c for c in complaints if c.status == 'Active'])
+    closed = len([c for c in complaints if c.status == 'Closed'])
+    
+    pdf.cell(50, 8, f'Total: {total}', 0, 0, 'L')
+    pdf.cell(50, 8, f'Pending: {pending}', 0, 0, 'L')
+    pdf.cell(50, 8, f'Active: {active}', 0, 0, 'L')
+    pdf.cell(50, 8, f'Closed: {closed}', 0, 1, 'L')
+    pdf.ln(5)
     
     # Table Header
-    pdf.set_font('Arial', 'B', 9)
-    pdf.set_fill_color(40, 44, 52)
-    pdf.set_text_color(255, 255, 255)
+    pdf.set_font('Arial', 'B', 7)
+    pdf.set_fill_color(200, 200, 200)
     
-    for i, header in enumerate(headers):
-        pdf.cell(col_widths[i], 8, header, 1, 0, 'C', True)
-    pdf.ln()
+    # Columns with Role (total ~195mm)
+    pdf.cell(18, 10, 'Complaint ID', 1, 0, 'C', 1)
+    pdf.cell(25, 10, 'Title', 1, 0, 'C', 1)
+    pdf.cell(20, 10, 'Category', 1, 0, 'C', 1)
+    pdf.cell(25, 10, 'Location', 1, 0, 'C', 1)
+    pdf.cell(15, 10, 'Status', 1, 0, 'C', 1)
+    pdf.cell(22, 10, 'Resolved By', 1, 0, 'C', 1)
+    pdf.cell(18, 10, 'Role', 1, 0, 'C', 1)
+    pdf.cell(20, 10, 'Created', 1, 0, 'C', 1)
+    pdf.cell(20, 10, 'Accepted', 1, 0, 'C', 1)
+    pdf.cell(12, 10, 'Time', 1, 1, 'C', 1)
     
     # Table Data
-    pdf.set_font('Arial', '', 8)
-    pdf.set_text_color(0, 0, 0)
+    pdf.set_font('Arial', '', 6)
     
-    for idx, c in enumerate(complaints):
+    for i, comp in enumerate(complaints):
         # Alternate row colors
-        if idx % 2 == 0:
-            pdf.set_fill_color(240, 240, 240)
+        if i % 2 == 0:
+            pdf.set_fill_color(245, 245, 245)
         else:
             pdf.set_fill_color(255, 255, 255)
         
-        # Get resolved by name
-        resolved_by = "-"
-        if c.assigned_to:
-            for u in all_users:
-                if u.id == c.assigned_to:
-                    resolved_by = u.name[:14]
-                    break
+        # Complaint ID
+        pdf.cell(18, 7, str(comp.complaint_id)[:10], 1, 0, 'C', 1)
         
-        # Get time taken (only duration)
-        time_taken = "-"
-        if c.resolved_at and c.created_at:
-            diff = c.resolved_at - c.created_at
-            total_minutes = int(diff.total_seconds() / 60)
-            
-            if total_minutes < 60:
-                time_taken = f"{total_minutes} min"
-            elif total_minutes < 1440:  # Less than 24 hours
-                hours = total_minutes // 60
-                time_taken = f"{hours} hr" if hours == 1 else f"{hours} hrs"
+        # Title
+        pdf.cell(25, 7, str(comp.title)[:14], 1, 0, 'L', 1)
+        
+        # Category
+        pdf.cell(20, 7, str(comp.category)[:12], 1, 0, 'L', 1)
+        
+        # Location
+        pdf.cell(25, 7, str(comp.location)[:14], 1, 0, 'L', 1)
+        
+        # Status
+        pdf.cell(15, 7, comp.status, 1, 0, 'C', 1)
+        
+        # Resolved By
+        resolved_name = '-'
+        resolved_role = '-'
+        if comp.assigned_to and comp.assigned_to in user_dict:
+            resolved_name = user_dict[comp.assigned_to].name[:12]
+            resolved_role = user_dict[comp.assigned_to].role[:10]
+        
+        pdf.cell(22, 7, resolved_name, 1, 0, 'L', 1)
+        pdf.cell(18, 7, resolved_role, 1, 0, 'L', 1)
+        
+        # Created
+        created = comp.created_at.strftime('%Y-%m-%d') if comp.created_at else '-'
+        pdf.cell(20, 7, created, 1, 0, 'C', 1)
+        
+        # Accepted
+        accepted = comp.assigned_at.strftime('%Y-%m-%d') if comp.assigned_at else '-'
+        pdf.cell(20, 7, accepted, 1, 0, 'C', 1)
+        
+        # Time Difference
+        if comp.created_at and comp.assigned_at:
+            diff = comp.assigned_at - comp.created_at
+            hours = diff.total_seconds() / 3600
+            if hours < 1:
+                time_diff = f"{int(diff.total_seconds() // 60)}m"
+            elif hours < 24:
+                time_diff = f"{int(hours)}h"
             else:
-                days = total_minutes // 1440
-                time_taken = f"{days} day" if days == 1 else f"{days} days"
-        elif c.status == 'Active':
-            time_taken = "In Progress"
+                time_diff = f"{int(hours // 24)}d"
+        elif comp.created_at:
+            diff = datetime.now() - comp.created_at
+            hours = diff.total_seconds() / 3600
+            if hours < 1:
+                time_diff = f"{int(diff.total_seconds() // 60)}m"
+            elif hours < 24:
+                time_diff = f"{int(hours)}h"
+            else:
+                time_diff = f"{int(hours // 24)}d"
+        else:
+            time_diff = '-'
         
-        # Created date
-        created_date = c.created_at.strftime('%Y-%m-%d %H:%M') if c.created_at else '-'
-        
-        pdf.cell(col_widths[0], 7, str(c.complaint_id), 1, 0, 'L', True)
-        pdf.cell(col_widths[1], 7, str(c.title)[:25], 1, 0, 'L', True)
-        pdf.cell(col_widths[2], 7, str(c.category)[:10], 1, 0, 'L', True)
-        pdf.cell(col_widths[3], 7, str(c.location)[:25], 1, 0, 'L', True)
-        pdf.cell(col_widths[4], 7, str(c.status), 1, 0, 'C', True)
-        pdf.cell(col_widths[5], 7, resolved_by, 1, 0, 'L', True)
-        pdf.cell(col_widths[6], 7, created_date[:14], 1, 0, 'C', True)
-        pdf.cell(col_widths[7], 7, time_taken, 1, 1, 'C', True)
+        pdf.cell(12, 7, time_diff, 1, 1, 'C', 1)
     
+    # Footer
     pdf.ln(10)
+    pdf.set_font('Arial', 'I', 8)
+    pdf.cell(0, 5, 'Page 1/1', 0, 0, 'R')
     
-    # Summary Section
-    pdf.set_font('Arial', 'B', 12)
-    pdf.cell(0, 10, 'SUMMARY', 0, 1, 'L')
-    pdf.ln(3)
+    # Return PDF
+    from flask import make_response
+    response = make_response(pdf.output(dest='S').encode('latin-1'))
+    response.headers['Content-Type'] = 'application/pdf'
+    response.headers['Content-Disposition'] = 'attachment; filename=complaint_report.pdf'
+    return response
+# ============================================
+# ADMIN - STATISTICS
+# ============================================
+ALLOWED_EXTENSIONS = {'xlsx', 'xls'}
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+# ============================================
+# THEN, ADD THE ROUTE AFTER ALL OTHER ROUTES
+# ============================================
+
+@app.route('/admin/upload_users', methods=['GET', 'POST'])
+@login_required
+def upload_users():
+    if current_user.role != 'Admin':
+        return redirect(url_for('dashboard'))
     
-    # Summary stats
-    pdf.set_font('Arial', '', 10)
-    total = Complaint.query.count()
+    if request.method == 'POST':
+        if 'file' not in request.files:
+            flash('No file selected!', 'error')
+            return redirect(request.url)
+        
+        file = request.files['file']
+        
+        if file.filename == '':
+            flash('No file selected!', 'error')
+            return redirect(request.url)
+        
+        if file and allowed_file(file.filename):
+            filename = secure_filename(file.filename)
+            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+            file.save(filepath)
+            
+            try:
+                # Read Excel file
+                df = pd.read_excel(filepath)
+                
+                # Required columns
+                required_cols = ['name', 'username', 'password', 'role']
+                
+                # Check if columns exist
+                missing_cols = [col for col in required_cols if col not in df.columns]
+                if missing_cols:
+                    flash(f'Missing columns: {missing_cols}', 'error')
+                    return redirect(request.url)
+                
+                # Create/Update users
+                created_count = 0
+                updated_count = 0
+                skipped_count = 0
+                
+                for index, row in df.iterrows():
+                    name = str(row['name']).strip()
+                    username = str(row['username']).strip()
+                    password = str(row['password']).strip()
+                    role = str(row['role']).strip()
+                    
+                    # Validate role
+                    if role not in ['Admin', 'Operator', 'HelpDesk', 'FieldEngineer']:
+                        skipped_count += 1
+                        continue
+                    
+                    # Check if user exists
+                    existing_user = User.query.filter_by(username=username).first()
+                    
+                    if existing_user:
+                        # Update existing user (only name and role)
+                        existing_user.name = name
+                        existing_user.role = role
+                        updated_count += 1
+                    else:
+                        # Create new user - use password directly
+                        new_user = User(
+                            name=name,
+                            username=username,
+                            password=password,  # Direct assignment
+                            role=role,
+                            is_approved=True
+                        )
+                        db.session.add(new_user)
+                        created_count += 1
+                
+                db.session.commit()
+                os.remove(filepath)
+                
+                flash(f'Successfully! Created: {created_count}, Updated: {updated_count}, Skipped: {skipped_count}', 'success')
+                return redirect(url_for('admin_dashboard'))
+            
+            except Exception as e:
+                flash(f'Error reading file: {str(e)}', 'error')
+                return redirect(request.url)
+    
+    return render_template('upload_users.html')
+# ============================================
+# ADMIN - STATISTICS
+# ============================================
+
+@app.route('/admin/statistics')
+@login_required
+def admin_statistics():
+    if current_user.role != 'Admin':
+        return redirect(url_for('dashboard'))
+    
+    # === User Statistics ===
+    total_users = User.query.count()
+    approved_users = User.query.filter_by(is_approved=True).count()
+    pending_users = User.query.filter_by(is_approved=False).count()
+    engineers = User.query.filter_by(role='FieldEngineer', is_approved=True).count()
+    operators = User.query.filter_by(role='Operator', is_approved=True).count()
+    helpdesk = User.query.filter_by(role='HelpDesk', is_approved=True).count()
+    admins = User.query.filter_by(role='Admin', is_approved=True).count()
+    
+    # === Complaint Statistics - ONLY Pending, Active, Closed ===
+    total_complaints = Complaint.query.filter(
+        Complaint.status.in_(['Pending', 'Active', 'Closed'])
+    ).count()
+    
     pending = Complaint.query.filter_by(status='Pending').count()
     active = Complaint.query.filter_by(status='Active').count()
-    resolved = Complaint.query.filter_by(status='Resolved').count()
     closed = Complaint.query.filter_by(status='Closed').count()
+    resolved = 0  # Not showing Resolved
+    rejected = 0  # Not showing Rejected
     
-    summary_data = [
-        ('Total Complaints', str(total)),
-        ('Pending', str(pending)),
-        ('Active', str(active)),
-        ('Resolved', str(resolved)),
-        ('Closed', str(closed))
-    ]
+    # === Category Statistics - ONLY Pending, Active, Closed ===
+    category_counts = {}
+    valid_complaints = Complaint.query.filter(
+        Complaint.status.in_(['Pending', 'Active', 'Closed'])
+    ).all()
     
-    pdf.set_fill_color(220, 220, 220)
-    for label, value in summary_data:
-        pdf.cell(50, 8, label, 1, 0, 'L', True)
-        pdf.cell(30, 8, value, 1, 1, 'C', True)
+    for c in valid_complaints:
+        if c.category:
+            cat = c.category
+            if cat in category_counts:
+                category_counts[cat] += 1
+            else:
+                category_counts[cat] = 1
     
-    # Output PDF
-    from flask import make_response
-    pdf_output = pdf.output(dest='S').encode('latin-1')
+    # === Priority Statistics - ONLY Pending, Active, Closed ===
+    high_priority = Complaint.query.filter(
+        Complaint.status.in_(['Pending', 'Active', 'Closed']),
+        Complaint.priority == 'High'
+    ).count()
     
-    response = make_response(pdf_output)
-    response.headers['Content-Type'] = 'application/pdf'
-    response.headers['Content-Disposition'] = f'attachment; filename=cms_report_{datetime.now().strftime("%Y%m%d_%H%M%S")}.pdf'
+    medium_priority = Complaint.query.filter(
+        Complaint.status.in_(['Pending', 'Active', 'Closed']),
+        Complaint.priority == 'Medium'
+    ).count()
     
-    return response
+    low_priority = Complaint.query.filter(
+        Complaint.status.in_(['Pending', 'Active', 'Closed']),
+        Complaint.priority == 'Low'
+    ).count()
+    
+    # === Engineer Performance - ONLY Pending, Active, Closed ===
+    engineer_list = []
+    engineers_users = User.query.filter_by(role='FieldEngineer', is_approved=True).all()
+    
+    for eng in engineers_users:
+        # Count only Pending, Active, Closed
+        assigned_count = Complaint.query.filter(
+            Complaint.assigned_to == eng.id,
+            Complaint.status.in_(['Pending', 'Active', 'Closed'])
+        ).count()
+        
+        closed_count = Complaint.query.filter_by(
+            assigned_to=eng.id, 
+            status='Closed'
+        ).count()
+        
+        active_count = Complaint.query.filter_by(
+            assigned_to=eng.id, 
+            status='Active'
+        ).count()
+        
+        engineer_list.append({
+            'name': eng.name,
+            'assigned': assigned_count,
+            'resolved': closed_count,
+            'active': active_count
+        })
+    
+    return render_template('admin_statistics.html',
+                         total_users=total_users,
+                         approved_users=approved_users,
+                         pending_users=pending_users,
+                         engineers=engineers,
+                         operators=operators,
+                         helpdesk=helpdesk,
+                         admins=admins,
+                         total_complaints=total_complaints,
+                         pending=pending,
+                         active=active,
+                         resolved=resolved,
+                         closed=closed,
+                         rejected=rejected,
+                         category_counts=category_counts,
+                         high_priority=high_priority,
+                         medium_priority=medium_priority,
+                         low_priority=low_priority,
+                         engineer_performance=engineer_list)
 
 # ============================================
 # ADMIN - UPDATE COMPLAINT STATUS
@@ -397,6 +635,47 @@ def admin_update_status(comp_id):
         flash(f'Complaint {complaint.complaint_id} status updated from {old_status} to {new_status}!', 'success')
     
     return redirect(url_for('admin_dashboard'))
+# ============================================
+# ADMIN - DOWNLOAD ALL USERS EXCEL
+# ============================================
+
+
+@app.route('/admin/download_users_excel')
+@login_required
+def download_users_excel():
+    if current_user.role != 'Admin':
+        return redirect(url_for('dashboard'))
+    
+    # Get all users
+    users = User.query.all()
+    
+    # Create DataFrame
+    data = []
+    for user in users:
+        data.append({
+            'name': user.name,
+            'username': user.username,
+            'password': user.password,  # Note: This shows hashed password
+            'role': user.role
+        })
+    
+    df = pd.DataFrame(data)
+    
+    # Create Excel file
+    filepath = os.path.join(app.config['UPLOAD_FOLDER'], 'all_users.xlsx')
+    os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+    
+    df.to_excel(filepath, index=False)
+    
+    # Return file for download
+    from flask import send_file
+    
+    return send_file(
+        filepath,
+        as_attachment=True,
+        download_name='all_users.xlsx',
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
 
 # ============================================
 # ADMIN - VIEW COMPLAINT DETAILS
@@ -887,42 +1166,63 @@ def reject_close(comp_id):
     return redirect(url_for('helpdesk_dashboard'))
 
 # ============================================
-# HELP DESK - UPDATE STATUS
+# HELPDESK - UPDATE COMPLAINT STATUS
 # ============================================
 
-# ============================================
-# HELP DESK - UPDATE STATUS
-# ============================================
-
-@app.route('/helpdesk/update_status/<int:comp_id>', methods=['POST'])
+@app.route('/helpdesk_update_complaint/<int:comp_id>', methods=['POST'])
 @login_required
-def helpdesk_update_status(comp_id):
-    if current_user.role != 'HelpDesk': 
+def helpdesk_update_complaint(comp_id):
+    if current_user.role != 'HelpDesk':
         return redirect(url_for('dashboard'))
     
-    complaint = Complaint.query.get(comp_id)
-    if not complaint:
-        flash('Complaint not found!', 'error')
-        return redirect(url_for('helpdesk_dashboard'))
+    complaint = Complaint.query.get_or_404(comp_id)
+    new_status = request.form.get('status')
     
-    new_status = request.form.get('status', '').strip()
-    
-    if new_status:
-        # HelpDesk can only close Power Supply complaints
-        if new_status == 'Closed' and complaint.category != 'Power Supply':
-            flash('HelpDesk can only close Power Supply complaints!', 'error')
-            return redirect(url_for('helpdesk_dashboard'))
-        
-        old_status = complaint.status
+    # HelpDesk can change status to Closed for ANY complaint
+    if new_status == 'Closed':
         complaint.status = new_status
-        
-        if new_status == 'Closed':
-            complaint.resolved_at = datetime.now()
-        
-        db.session.commit()
-        flash(f'Complaint {complaint.complaint_id} status updated to {new_status}!', 'success')
+        complaint.closed_at = datetime.now()
+        complaint.resolved_by = current_user.id
+        complaint.assigned_to = current_user.id
+    elif new_status == 'Pending':
+        complaint.status = new_status
+    elif new_status == 'Active':
+        complaint.status = new_status
+    
+    db.session.commit()
+    flash(f'Complaint {complaint.complaint_id} updated to {new_status}!', 'success')
     
     return redirect(url_for('helpdesk_dashboard'))
+
+
+# ============================================
+# HELPDESK - CLOSE BUTTON (Simple)
+# ============================================
+
+@app.route('/helpdesk_close/<int:comp_id>', methods=['POST'])
+@login_required
+def helpdesk_close(comp_id):
+    if current_user.role != 'HelpDesk':
+        return redirect(url_for('dashboard'))
+    
+    complaint = Complaint.query.get_or_404(comp_id)
+    
+    # HelpDesk can ONLY close Power Supply complaints
+    if complaint.category != 'Power Supply':
+        flash(f'You can only close Power Supply complaints!', 'error')
+        return redirect(url_for('helpdesk_dashboard'))
+    
+    # Update to Closed
+    complaint.status = 'Closed'
+    complaint.closed_at = datetime.now()
+    complaint.resolved_by = current_user.id
+    complaint.assigned_to = current_user.id
+    
+    db.session.commit()
+    flash(f'Complaint {complaint.complaint_id} closed by {current_user.name}!', 'success')
+    
+    return redirect(url_for('helpdesk_dashboard'))
+
 
 if __name__ == '__main__':
     # Initialize database

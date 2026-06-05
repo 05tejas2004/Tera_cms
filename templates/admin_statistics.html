@@ -1,0 +1,282 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+    <h2><i class="fas fa-chart-bar"></i> Statistics Dashboard</h2>
+    
+    <!-- Back to Dashboard -->
+    <div class="mb-3">
+        <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline-light">
+            <i class="fas fa-arrow-left"></i> Back to Dashboard
+        </a>
+    </div>
+    
+    <!-- ==================== USER STATISTICS ==================== -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <h4 class="text-info"><i class="fas fa-users"></i> User Statistics</h4>
+        </div>
+    </div>
+    
+    <div class="row mt-2">
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body text-center">
+                    <h3>{{ total_users }}</h3>
+                    <p>Total Users</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body text-center">
+                    <h3>{{ approved_users }}</h3>
+                    <p>Approved</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-dark">
+                <div class="card-body text-center">
+                    <h3>{{ pending_users }}</h3>
+                    <p>Pending</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body text-center">
+                    <h3>{{ engineers }}</h3>
+                    <p>Engineers</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- User Charts -->
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="card bg-dark">
+                <div class="card-header"><h5><i class="fas fa-chart-pie"></i> User Role Distribution</h5></div>
+                <div class="card-body"><canvas id="userRoleChart"></canvas></div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card bg-dark">
+                <div class="card-header"><h5><i class="fas fa-chart-bar"></i> User Status</h5></div>
+                <div class="card-body"><canvas id="userStatusChart"></canvas></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- ==================== COMPLAINT STATISTICS ==================== -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <h4 class="text-primary"><i class="fas fa-clipboard-list"></i> Complaint Statistics</h4>
+        </div>
+    </div>
+    
+    <div class="row mt-2">
+        <div class="col-md-4">
+            <div class="card bg-primary text-white">
+                <div class="card-body text-center">
+                    <h3>{{ total_complaints }}</h3>
+                    <p>Total Complaints</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-warning text-dark">
+                <div class="card-body text-center">
+                    <h3>{{ pending }}</h3>
+                    <p>Pending</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-success text-white">
+                <div class="card-body text-center">
+                    <h3>{{ active }}</h3>
+                    <p>Active</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row mt-2">
+        <div class="col-md-12">
+            <div class="card bg-secondary text-white">
+                <div class="card-body text-center">
+                    <h3>{{ closed }}</h3>
+                    <p>Closed</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Complaint Charts -->
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="card bg-dark">
+                <div class="card-header"><h5><i class="fas fa-chart-pie"></i> Complaint Status</h5></div>
+                <div class="card-body"><canvas id="complaintStatusChart"></canvas></div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card bg-dark">
+                <div class="card-header"><h5><i class="fas fa-chart-bar"></i> Priority Distribution</h5></div>
+                <div class="card-body"><canvas id="priorityChart"></canvas></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Category Chart -->
+    <div class="row mt-4">
+        <div class="col-md-12">
+            <div class="card bg-dark">
+                <div class="card-header"><h5><i class="fas fa-tags"></i> Complaints by Category</h5></div>
+                <div class="card-body"><canvas id="categoryChart"></canvas></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- ==================== ENGINEER PERFORMANCE ==================== -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <h4 class="text-success"><i class="fas fa-tools"></i> Engineer Performance</h4>
+        </div>
+    </div>
+    
+    <div class="row mt-2">
+        {% for eng in engineer_performance %}
+        <div class="col-md-3">
+            <div class="card bg-dark">
+                <div class="card-header bg-success"><h6>{{ eng.name }}</h6></div>
+                <div class="card-body text-center">
+                    <div class="row">
+                        <div class="col-4">
+                            <h4 class="text-white">{{ eng.assigned }}</h4>
+                            <small>Total</small>
+                        </div>
+                        <div class="col-4">
+                            <h4 class="text-success">{{ eng.resolved }}</h4>
+                            <small>Closed</small>
+                        </div>
+                        <div class="col-4">
+                            <h4 class="text-warning">{{ eng.active }}</h4>
+                            <small>Active</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    
+    <!-- Engineer Chart -->
+    <div class="row mt-4">
+        <div class="col-md-12">
+            <div class="card bg-dark">
+                <div class="card-header"><h5><i class="fas fa-users"></i> Engineer Performance Comparison</h5></div>
+                <div class="card-body"><canvas id="engineerChart"></canvas></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+    // User Role Chart
+    new Chart(document.getElementById('userRoleChart'), {
+        type: 'doughnut',
+        data: {
+            labels: ['Engineers', 'Operators', 'HelpDesk', 'Admins'],
+            datasets: [{
+                data: [{{ engineers }}, {{ operators }}, {{ helpdesk }}, {{ admins }}],
+                backgroundColor: ['#28a745', '#6c757d', '#17a2b8', '#dc3545']
+            }]
+        }
+    });
+    
+    // User Status Chart
+    new Chart(document.getElementById('userStatusChart'), {
+        type: 'bar',
+        data: {
+            labels: ['Approved', 'Pending'],
+            datasets: [{
+                label: 'Users',
+                data: [{{ approved_users }}, {{ pending_users }}],
+                backgroundColor: ['#28a745', '#ffc107']
+            }]
+        },
+        options: { scales: { y: { beginAtZero: true } } }
+    });
+    
+    // Complaint Status Chart - ONLY Pending, Active, Closed
+    new Chart(document.getElementById('complaintStatusChart'), {
+        type: 'pie',
+        data: {
+            labels: ['Pending', 'Active', 'Closed'],
+            datasets: [{
+                data: [{{ pending }}, {{ active }}, {{ closed }}],
+                backgroundColor: ['#ffc107', '#28a745', '#6c757d']
+            }]
+        }
+    });
+    
+    // Priority Chart
+    new Chart(document.getElementById('priorityChart'), {
+        type: 'bar',
+        data: {
+            labels: ['High', 'Medium', 'Low'],
+            datasets: [{
+                label: 'Complaints',
+                data: [{{ high_priority }}, {{ medium_priority }}, {{ low_priority }}],
+                backgroundColor: ['#dc3545', '#ffc107', '#17a2b8']
+            }]
+        },
+        options: { scales: { y: { beginAtZero: true } } }
+    });
+    
+    // Category Chart
+    new Chart(document.getElementById('categoryChart'), {
+        type: 'bar',
+        data: {
+            labels: {{ category_counts.keys()|list }},
+            datasets: [{
+                label: 'Complaints',
+                data: {{ category_counts.values()|list }},
+                backgroundColor: '#0dcaf0'
+            }]
+        },
+        options: { indexAxis: 'y', scales: { x: { beginAtZero: true } } }
+    });
+    
+    // Engineer Performance Chart
+    new Chart(document.getElementById('engineerChart'), {
+        type: 'bar',
+        data: {
+            labels: {{ engineer_performance|map(attribute='name')|list }},
+            datasets: [
+                {
+                    label: 'Total',
+                    data: {{ engineer_performance|map(attribute='assigned')|list }},
+                    backgroundColor: '#0d6efd'
+                },
+                {
+                    label: 'Closed',
+                    data: {{ engineer_performance|map(attribute='resolved')|list }},
+                    backgroundColor: '#198754'
+                },
+                {
+                    label: 'Active',
+                    data: {{ engineer_performance|map(attribute='active')|list }},
+                    backgroundColor: '#ffc107'
+                }
+            ]
+        },
+        options: { scales: { y: { beginAtZero: true } } }
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+    <h2><i class="fas fa-file-excel"></i> Bulk User Upload</h2>
+    
+    <!-- Back Button -->
+    <div class="mb-3">
+        <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline-light">
+            <i class="fas fa-arrow-left"></i> Back to Dashboard
+        </a>
+    </div>
+    
+    <!-- Instructions -->
+    <div class="card bg-dark mt-4">
+        <div class="card-header bg-info">
+            <h5><i class="fas fa-info-circle"></i> Instructions</h5>
+        </div>
+        <div class="card-body">
+            <p>Upload an Excel file (.xlsx or .xls) with the following columns:</p>
+            <ul>
+                <li><strong>name</strong> - Full name of the user</li>
+                <li><strong>username</strong> - Unique username for login</li>
+                <li><strong>password</strong> - Login password</li>
+                <li><strong>role</strong> - Must be: Admin, Operator, HelpDesk, or FieldEngineer</li>
+            </ul>
+            
+            <h6>Example Excel Structure:</h6>
+            <table class="table table-bordered table-sm">
+                <thead>
+                    <tr>
+                        <th>name</th>
+                        <th>username</th>
+                        <th>password</th>
+                        <th>role</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>John Smith</td>
+                        <td>jsmith</td>
+                        <td>password123</td>
+                        <td>FieldEngineer</td>
+                    </tr>
+                    <tr>
+                        <td>Mike Johnson</td>
+                        <td>mjohnson</td>
+                        <td>pass456</td>
+                        <td>Operator</td>
+                    </tr>
+                    <tr>
+                        <td>Sarah Davis</td>
+                        <td>sdavis</td>
+                        <td>secret789</td>
+                        <td>HelpDesk</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <!-- Upload Form -->
+    <div class="card bg-dark mt-4">
+        <div class="card-header">
+            <h5><i class="fas fa-upload"></i> Upload Excel File</h5>
+        </div>
+        <div class="card-body">
+            <form method="POST" enctype="multipart/form-data">
+                <div class="mb-3">
+                    <input type="file" name="file" class="form-control" accept=".xlsx,.xls" required>
+                </div>
+                <button type="submit" class="btn btn-success">
+                    <i class="fas fa-upload"></i> Upload & Create Users
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
