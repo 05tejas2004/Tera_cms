@@ -2,7 +2,14 @@
 <html lang="en" data-bs-theme="dark">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Mobile Responsive Meta Tags -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#1a1a1a">
+    <meta name="description" content="TERA CMS - Complaint Management System">
+    
     <title>Tera Software Power Complaint Registeration System </title>
     
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='Tera_Logo.png') }}">
@@ -10,6 +17,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <style>
+        /* Base Styles */
         body {
             background-image: linear-gradient(rgba(18, 18, 18, 0.9), rgba(18, 18, 18, 0.9)), url("{{ url_for('static', filename='smart_city.png') }}");
             background-size: cover;
@@ -21,14 +29,14 @@
         }
 
         .navbar-brand img, .navbar-brand-custom img {
-            height: 60px;
+            height: 40px;
             width: auto;
         }
 
         .navbar-brand-custom {
             display: flex;
             align-items: center;
-            gap: 15px;
+            gap: 10px;
         }
 
         /* Center login card */
@@ -44,6 +52,7 @@
             width: 100%;
         }
 
+        /* Card Styles */
         .card {
             background-color: rgba(30, 30, 30, 0.85);
             backdrop-filter: blur(5px);
@@ -58,11 +67,15 @@
             background-color: #1a1a1a !important;
             border-bottom: 1px solid #333;
         }
+        
+        /* Table Styles */
         .table {
             --bs-table-bg: #1e1e1e;
             --bs-table-color: #e0e0e0;
             --bs-table-border-color: #333;
         }
+        
+        /* Button Colors */
         .btn-primary {
             background-color: #0d6efd;
             border-color: #0d6efd;
@@ -75,10 +88,8 @@
             background-color: #dc3545;
             border-color: #dc3545;
         }
-        .alert-info {
-            background-color: #0dcaf0;
-            color: #000;
-        }
+        
+        /* Form Styles */
         .form-control, .form-select {
             background-color: #2d2d2d;
             border-color: #444;
@@ -88,6 +99,243 @@
             background-color: #333;
             border-color: #0d6efd;
             color: #fff;
+        }
+
+        /* ==================== MOBILE RESPONSIVE STYLES ==================== */
+        @media (max-width: 768px) {
+            /* Mobile Container */
+            .container {
+                padding-left: 10px;
+                padding-right: 10px;
+                padding-bottom: 80px !important;
+            }
+            
+            /* Smaller Navbar */
+            .navbar {
+                padding: 8px 10px !important;
+            }
+            
+            .navbar-brand img, .navbar-brand-custom img {
+                height: 30px;
+            }
+            
+            .navbar-brand-custom span {
+                font-size: 12px !important;
+            }
+            
+            /* Mobile Typography */
+            h2 {
+                font-size: 1.3rem !important;
+            }
+            
+            h4 {
+                font-size: 1.1rem !important;
+            }
+            
+            h1.display-4 {
+                font-size: 2rem !important;
+            }
+            
+            /* Card Mobile */
+            .card {
+                margin-bottom: 15px;
+            }
+            
+            .card-body {
+                padding: 15px !important;
+            }
+            
+            .card-header {
+                padding: 10px 15px;
+            }
+            
+            /* Table Mobile */
+            .table {
+                font-size: 11px !important;
+            }
+            
+            .table th, .table td {
+                padding: 6px 4px !important;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                max-width: 0;
+            }
+            
+            /* Mobile Stats Cards */
+            .row.g-3 > div, .row.mb-4 > div, .row.g-3 > .col-6, .row.mb-4 > .col-6 {
+                margin-bottom: 10px;
+            }
+            
+            .col-6, .col-md-3, .col-md-4 {
+                padding-left: 5px;
+                padding-right: 5px;
+            }
+            
+            /* Buttons Mobile */
+            .btn {
+                padding: 10px 15px;
+                font-size: 13px;
+                min-height: 44px;
+                min-width: 44px;
+            }
+            
+            .btn-sm {
+                padding: 8px 12px;
+                font-size: 12px;
+            }
+            
+            .btn-lg {
+                padding: 12px 20px;
+                font-size: 14px;
+            }
+            
+            /* Form Controls Mobile */
+            .form-control, .form-select, .input-group-text {
+                min-height: 44px;
+                font-size: 14px;
+            }
+            
+            input[type="text"], input[type="password"], 
+            input[type="date"], input[type="email"], 
+            select.form-control {
+                font-size: 16px; /* Prevents iOS zoom */
+            }
+            
+            /* Action Forms */
+            .d-flex.gap-1 {
+                gap: 5px !important;
+            }
+            
+            .d-flex.gap-1 select,
+            .d-flex.gap-1 button {
+                padding: 8px !important;
+            }
+            
+            /* Stats Card Numbers */
+            .card-body h1, .card-body h3 {
+                margin-bottom: 5px !important;
+            }
+            
+            .card-body p {
+                font-size: 12px;
+                margin-bottom: 0 !important;
+            }
+            
+            /* Hide Non-Essential on Mobile */
+            .hide-mobile {
+                display: none !important;
+            }
+            
+            /* Badge Size */
+            .badge {
+                font-size: 10px;
+                padding: 4px 6px;
+            }
+            
+            /* Login Card Mobile */
+            .login-card {
+                margin: 10px;
+            }
+            
+            .login-card .card-body {
+                padding: 25px 20px !important;
+            }
+            
+            /* Quick Action Buttons */
+            .quick-actions .btn {
+                padding: 15px 10px;
+                font-size: 12px;
+            }
+            
+            /* Table Scroll */
+            .table-responsive {
+                -webkit-overflow-scrolling: touch;
+                overflow-x: auto;
+            }
+            
+            /* Adjust Alert */
+            .alert {
+                padding: 10px 15px;
+                font-size: 13px;
+            }
+            
+            /* Footer padding for FAB */
+            .fab-container {
+                padding-bottom: 80px;
+            }
+        }
+
+        /* Tablet Styles */
+        @media (min-width: 769px) and (max-width: 1024px) {
+            .container {
+                max-width: 95%;
+            }
+            
+            .table {
+                font-size: 12px;
+            }
+        }
+
+        /* Desktop Styles */
+        @media (min-width: 1025px) {
+            .container {
+                max-width: 1400px;
+            }
+            
+            .table {
+                font-size: 14px;
+            }
+        }
+
+        /* Large Desktop */
+        @media (min-width: 1400px) {
+            .container {
+                max-width: 1600px;
+            }
+        }
+
+        /* Touch-friendly for all mobile */
+        @media (hover: none) and (pointer: coarse) {
+            /* Larger touch targets */
+            .btn, .form-control, select {
+                min-height: 48px;
+            }
+            
+            /* Tap highlight */
+            * {
+                -webkit-tap-highlight-color: rgba(255, 255, 255, 0.1);
+            }
+            
+            /* Smooth scrolling */
+            html {
+                scroll-behavior: smooth;
+            }
+        }
+
+        /* Horizontal scroll for tables on mobile */
+        .table-wrapper {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        /* PWA Install Banner */
+        .install-banner {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: #1a1a1a;
+            padding: 15px;
+            border-top: 1px solid #333;
+            z-index: 1000;
+            display: none;
+        }
+        
+        .install-banner.show {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
     </style>
 </head>
@@ -157,13 +405,62 @@
     
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/static/service-worker.js')
-            .then(reg => console.log('Service Worker Registered'))
-            .catch(err => console.log(err));
-    });
-}
-</script>
+        // Service Worker Registration
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/static/service-worker.js')
+                    .then(reg => console.log('Service Worker Registered'))
+                    .catch(err => console.log(err));
+            });
+        }
+
+        // PWA Install Prompt
+        let deferredPrompt;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            const banner = document.querySelector('.install-banner');
+            if (banner) banner.classList.add('show');
+        });
+
+        function installPWA() {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                deferredPrompt.userChoice.then((choiceResult) => {
+                    if (choiceResult.outcome === 'accepted') {
+                        console.log('User accepted the A2HS prompt');
+                    }
+                    deferredPrompt = null;
+                    const banner = document.querySelector('.install-banner');
+                    if (banner) banner.classList.remove('show');
+                });
+            }
+        }
+
+        // Detect Mobile
+        function isMobile() {
+            return window.innerWidth <= 768 || 'ontouchstart' in window;
+        }
+
+        // Add mobile class to body
+        if (isMobile()) {
+            document.body.classList.add('is-mobile');
+        }
+
+        // HandleResize
+        window.addEventListener('resize', () => {
+            if (isMobile()) {
+                document.body.classList.add('is-mobile');
+            } else {
+                document.body.classList.remove('is-mobile');
+            }
+        });
+    </script>
+    
+    <!-- Install Banner (hidden by default) -->
+    <div class="install-banner">
+        <span>Install TERA CMS as an App</span>
+        <button class="btn btn-primary btn-sm" onclick="installPWA()">Install</button>
+    </div>
 </body>
 </html>

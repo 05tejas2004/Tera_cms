@@ -1,20 +1,19 @@
 {
-  "name": "Complaint Management System",
-  "short_name": "CMS",
-  "description": "Complaint Management System",
+  "name": "TERA CMS",
+  "short_name": "TERA",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#0d6efd",
-  "orientation": "portrait",
+  "background_color": "#1e293b",
+  "theme_color": "#0f172a",
+  "description": "TERA Complaint Management System",
   "icons": [
     {
-      "src": "/static/icon-192.png",
+      "src": "/static/Tera_Logo.png",
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "/static/icon-512.png",
+      "src": "/static/Tera_Logo.png",
       "sizes": "512x512",
       "type": "image/png"
     }
